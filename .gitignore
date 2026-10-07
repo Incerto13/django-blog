@@ -5,3 +5,6 @@ Junk/
 postgres/data
 
 
+__pycache__/
+*.pyc
+staticfiles/

@@ -1,17 +1,25 @@
-FROM python:3.6
+FROM python:3.12-slim
 
-RUN mkdir -p /usr/src/app
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_ENV=production
+
 WORKDIR /usr/src/app
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p /static
-RUN chown -R root /static
-ENV DJANGO_ENV production
-
-# copy current dir's content to container's WORKDIR root i.e. all the contents of the web app 
 COPY . .
 
-# inital migration, import dump, and static files
-RUN chmod +x entrypoint.sh
+# Static files are baked into the image and served by WhiteNoise.
+# collectstatic only needs settings to import, so dummy values are fine here.
+RUN DJANGO_SECRET_KEY=build POSTGRES_DB=x POSTGRES_USER=x POSTGRES_PASSWORD=x \
+    python manage.py collectstatic --noinput \
+ && chmod +x entrypoint.sh \
+ && useradd --create-home --uid 1000 app \
+ && chown -R app:app /usr/src/app
+USER app
+
+EXPOSE 8000
+ENTRYPOINT ["./entrypoint.sh"]
+CMD ["gunicorn", "blogwebsite.wsgi", "--bind", "0.0.0.0:8000", "--workers", "2", "--access-logfile", "-"]

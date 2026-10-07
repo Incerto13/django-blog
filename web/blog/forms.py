@@ -6,7 +6,7 @@ from .models import Post
 
 class PostForm(forms.ModelForm):
 
-    published_date = forms.SplitDateTimeField(initial=timezone.now())
+    published_date = forms.SplitDateTimeField(initial=timezone.now)
 
     class Meta:
         model = Post

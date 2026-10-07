@@ -31,6 +31,11 @@
         <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
 
+    <style>
+      .navbar-logout { margin: 0; }
+      .navbar-logout button { background: none; border: 0; padding: 20px 15px; color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; cursor: pointer; }
+      @media (min-width: 768px) { .navbar-logout button { padding: 20px 15px; color: #fff; font-size: 12px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; } }
+    </style>
 </head>
 
 <body>
@@ -63,7 +68,12 @@
 
                         {% if user.is_authenticated %}
                             <li><a href="{% url 'blog:draft_list' %}">Drafts</a></li>
-                            <li><a href="{% url 'blog:logout' %}">Logout</a></li>
+                            <li>
+                                <form method="post" action="{% url 'blog:logout' %}" class="navbar-logout">
+                                    {% csrf_token %}
+                                    <button type="submit">Logout</button>
+                                </form>
+                            </li>
                             <li><a href="{% url 'blog:post_new' %}"><span class="glyphicon glyphicon-plus"></span></a></li>
                         {% else %}
                             <li><a href="{% url 'blog:login' %}">Login</a></li>

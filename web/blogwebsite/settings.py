@@ -23,12 +23,21 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
 
 # SECURITY WARNING: don't run with debug turned on in production!
-if os.environ['DJANGO_ENV'] == 'production':
-    DEBUG = False
-else:
-    DEBUG = True
+DEBUG = os.environ.get('DJANGO_ENV', 'production') != 'production'
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.incertotech.com', '54.80.224.201']
+# Comma-separated, e.g. "django-blog.incertotech.com,localhost"
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get(
+    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,.incertotech.com,.incertotech.local').split(',') if h.strip()]
+
+# Django 4+ checks the Origin of every POST (login, new post, contact form)
+# against this list when served over HTTPS. Comma-separated full origins.
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.environ.get(
+    'DJANGO_CSRF_TRUSTED_ORIGINS',
+    'https://django-blog.incertotech.com,https://django-blog.staging.incertotech.com,https://django-blog.incertotech.local',
+).split(',') if o.strip()]
+
+# TLS terminates in front of the app (CloudFront / Traefik); trust its scheme header.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 
 # Application definition
@@ -46,6 +55,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # serves /static/ (replaces the nginx container)
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -80,12 +90,12 @@ WSGI_APPLICATION = 'blogwebsite.wsgi.application'
 
 DATABASES = {
     'postgresql': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
+        'ENGINE': 'django.db.backends.postgresql',
         'NAME': os.environ['POSTGRES_DB'],
         'USER': os.environ['POSTGRES_USER'],
         'PASSWORD': os.environ['POSTGRES_PASSWORD'],
-        'HOST': os.environ['DB_HOST'],
-        'PORT': 5432,
+        'HOST': os.environ.get('DB_HOST', 'localhost'),
+        'PORT': int(os.environ.get('DB_PORT', '5432')),
     }
 }
 
@@ -119,8 +129,6 @@ TIME_ZONE = 'America/Chicago'
 
 USE_I18N = True
 
-USE_L10N = True
-
 USE_TZ = True
 
 
@@ -129,12 +137,20 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, '/static/')
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage'},
+}
 
 # Additional locations of static files
 STATICFILES_DIRS = (os.path.join(BASE_DIR, 'static')),
 
+LOGIN_URL = 'blog:login'  # @login_required redirects here (default /accounts/login/ doesn't exist)
 LOGIN_REDIRECT_URL = 'blog:post_list'
 LOGOUT_REDIRECT_URL = 'blog:post_list'
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Keep the integer primary keys the existing migrations created.
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

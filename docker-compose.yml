@@ -1,51 +1,25 @@
-version: '2'
+# Local / single-host run. The app serves its own static files (WhiteNoise),
+# so the old nginx and (unused) redis containers are gone: web + postgres only,
+# matching the one-pod-per-app layout used on Kubernetes.
 services:
 
-    web:
-        build: ./web
-        restart: unless-stopped
-        env_file: ./web/app.env
-        volumes:
-        - ./web:/usr/src/app
-        - /static:/static
-        depends_on:
-          - redis
-          - postgres
-        expose:
-          - "8001"
-        command: gunicorn blogwebsite.wsgi -b 0.0.0.0:8001
+  web:
+    build: ./web
+    restart: unless-stopped
+    env_file: ./web/app.env
+    environment:
+      DB_HOST: postgres
+    depends_on:
+      - postgres
+    ports:
+      - "8001:8000"
 
-    postgres:
-        build: ./postgres
-        env_file: ./web/app.env
-        restart: unless-stopped
-        expose:
-            - "5432"
-        environment:   # will be used by the init script
-            LC_ALL: C.UTF-8
-        volumes:
-            - ./postgres/data:/var/lib/postgresql/data/  # persist container's db data to local pgdata/ (mounted)
-
-    redis:
-        image: sickp/alpine-redis:3.2.2
-        restart: unless-stopped
-        expose:
-            - "6379"
-        volumes:
-            - redisdata:/data
-
-    nginx:
-        restart: unless-stopped
-        build: ./nginx/
-        ports:
-          - "8001:80"
-        volumes:
-          - /static:/static
-        links:
-          - web
+  postgres:
+    image: postgres:17-alpine   # official image creates POSTGRES_USER / POSTGRES_DB itself
+    restart: unless-stopped
+    env_file: ./web/app.env
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
 volumes:
-  redisdata:
-
-
-
+  pgdata:
